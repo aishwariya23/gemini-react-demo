@@ -1,64 +1,61 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { GoogleGenAI } from "@google/genai";
+import "./App.css";
 
 function App() {
-  const [input, setInput] = useState("");
+  const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
 
-const callGemini = async () => {
-  setLoading(true);
-  try {
-    const res = await fetch(
-  "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=" +
-    process.env.REACT_APP_GEMINI_API_KEY,
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: input }],
-        },
-      ],
-    }),
-  }
-);
+  // Create Gemini client
+  const ai = new GoogleGenAI({
+    apiKey: process.env.REACT_APP_GEMINI_API_KEY,
+  });
 
-    const data = await res.json();
-    console.log("Full API response:", data);
-
-    if (data.error) {
-      setResponse("Error: " + data.error.message);
-    } else {
-      setResponse(
-        data?.candidates?.[0]?.content?.parts?.[0]?.text || "No text found"
-      );
+  const generateResponse = async () => {
+    if (!prompt.trim()) {
+      setResponse("Please enter a prompt.");
+      return;
     }
-  } catch (err) {
-    console.error(err);
-    setResponse("Error: " + err.message);
-  }
-  setLoading(false);
-};
+
+    setLoading(true);
+    setResponse("");
+
+    try {
+      // Use the current Gemini model with the Interactions API
+      const interaction = await ai.interactions.create({
+        model: "gemini-3.6-flash",
+        input: prompt,
+      });
+
+      // Get generated text
+      setResponse(interaction.output_text);
+
+    } catch (error) {
+      console.error(error);
+      setResponse("Error: " + error.message);
+    }
+
+    setLoading(false);
+  };
 
   return (
-    <div style={{ padding: "20px", fontFamily: "sans-serif" }}>
-      <h1>Gemini React Demo</h1>
+    <div className="container">
+      <h1>Gemini AI App</h1>
+
       <textarea
-        rows="4"
-        cols="50"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Type your prompt..."
+        placeholder="Enter your prompt..."
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
       />
-      <br />
-      <button onClick={callGemini} disabled={loading}>
-        {loading ? "Loading..." : "Send"}
+
+      <button onClick={generateResponse} disabled={loading}>
+        {loading ? "Generating..." : "Generate"}
       </button>
-      <div style={{ marginTop: "20px", whiteSpace: "pre-wrap" }}>
-        <strong>Response:</strong>
-        <p>{response}</p>
+
+      <div className="response-box">
+        <h3>Response</h3>
+        <p>{response || "Gemini response will appear here."}</p>
       </div>
     </div>
   );
